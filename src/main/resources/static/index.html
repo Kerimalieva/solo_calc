@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLO.KG Калькулятор услуг</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', 'Manrope', sans-serif; background:#f9f9ff; color:#1a1c20; }
+        .container { max-width:1280px; margin:0 auto; padding:0 24px; }
+        .header { background:white; border-bottom:1px solid #e2e8f0; padding:16px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+        .logo { font-size:28px; font-weight:800; color:#ff5722; text-decoration:none; }
+        .nav a { color:#64748b; text-decoration:none; margin-left:24px; font-weight:500; transition:color 0.2s; }
+        .nav a:hover { color:#ff5722; }
+        .hero { text-align:center; padding:60px 0 40px; }
+        .hero h1 { font-size:2.8rem; font-weight:800; margin-bottom:16px; background:linear-gradient(135deg,#ff5722,#c2410c); -webkit-background-clip:text; background-clip:text; color:transparent; }
+        .hero p { font-size:1.2rem; color:#64748b; max-width:600px; margin:0 auto; }
+        .services-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:30px; margin:40px 0 60px; }
+        .service-card { background:white; border-radius:28px; overflow:hidden; box-shadow:0 10px 25px -5px rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; }
+        .service-card:hover { transform:translateY(-5px); box-shadow:0 20px 30px -12px rgba(0,0,0,0.1); }
+        .service-card img { width:100%; height:200px; object-fit:cover; background:#f1f5f9; }
+        .service-card-content { padding:20px; flex:1; display:flex; flex-direction:column; }
+        .service-card h3 { font-size:1.4rem; font-weight:700; margin-bottom:8px; color:#0f172a; }
+        .service-card p { color:#64748b; font-size:0.9rem; line-height:1.4; margin-bottom:16px; flex:1; }
+        .service-footer { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+        .price-badge { background:#f1f5f9; border-radius:40px; padding:6px 14px; font-size:0.8rem; font-weight:600; color:#475569; display:flex; align-items:center; gap:6px; }
+        .price-badge.has-calc { background:#fff0e6; color:#ff5722; }
+        .btn-calc { background:#ff5722; color:white; border:none; border-radius:40px; padding:8px 20px; font-weight:600; cursor:pointer; transition:0.2s; text-decoration:none; display:inline-block; }
+        .btn-calc:hover { background:#e64a19; transform:scale(1.02); }
+        .footer { text-align:center; padding:30px; border-top:1px solid #eef2f7; color:#94a3b8; font-size:0.8rem; margin-top:40px; }
+        @media (max-width:768px) {
+            .hero h1 { font-size:2rem; }
+            .services-grid { gap:20px; }
+            .container { padding:0 16px; }
+            .nav a { margin-left:16px; }
+        }
+        @media (max-width:480px) {
+            .hero { padding:30px 0; }
+            .services-grid { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body>
+<header class="header">
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <a href="/" class="logo">SOLO.KG</a>
+        <div class="nav">
+            <a href="/">Главная</a>
+            <a href="/admin">Админка</a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <div class="container">
+        <div class="hero">
+            <h1>Рассчитайте стоимость услуги</h1>
+            <p>Выберите нужную услугу и узнайте примерную цену за считанные секунды. Окончательная стоимость согласовывается с менеджером.</p>
+        </div>
+
+        <div id="servicesContainer" class="services-grid">
+            <div style="text-align:center; padding:40px;">Загрузка...</div>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <p>© 2026 SOLO.KG — маркетплейс профессиональных услуг</p>
+</footer>
+
+<script>
+    async function loadServices() {
+        try {
+            const res = await fetch('/api/admin/services');
+            const services = await res.json();
+            renderServices(services);
+        } catch (err) {
+            document.getElementById('servicesContainer').innerHTML = '<div style="text-align:center; padding:40px;">Ошибка загрузки услуг</div>';
+        }
+    }
+
+    function renderServices(services) {
+        const container = document.getElementById('servicesContainer');
+        if (!services.length) {
+            container.innerHTML = '<div class="service-card" style="grid-column:1/-1; text-align:center; padding:60px;">Пока нет услуг. Зайдите в админку, чтобы добавить.</div>';
+            return;
+        }
+        container.innerHTML = services.map(service => {
+            const hasCalculator = service.calculatorConfig && service.calculatorConfig.active;
+            const priceText = hasCalculator ? 'Рассчитать цену' : 'Цена по запросу';
+            const badgeClass = hasCalculator ? 'has-calc' : '';
+            const detailUrl = `/service?id=${service.id}`;
+            return `
+                    <div class="service-card">
+                        <img src="${service.imageUrl || 'https://via.placeholder.com/400x200?text=SOLO.KG'}" alt="${escapeHtml(service.name)}" loading="lazy">
+                        <div class="service-card-content">
+                            <h3>${escapeHtml(service.name)}</h3>
+                            <p>${escapeHtml(service.description?.substring(0, 100) || '')}${service.description?.length > 100 ? '...' : ''}</p>
+                            <div class="service-footer">
+                                <div class="price-badge ${badgeClass}">
+                                    <span>🧮</span> ${priceText}
+                                </div>
+                                <a href="${detailUrl}" class="btn-calc">${hasCalculator ? 'Рассчитать' : 'Подробнее'}</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+        }).join('');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    loadServices();
+</script>
+</body>
+</html>

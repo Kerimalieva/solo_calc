@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Услуга - SOLO.KG Калькулятор</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing: border-box; }
+        body { font-family: 'Inter', 'Manrope', sans-serif; background: #f9f9ff; color: #1a1c20; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .header { background: white; border-bottom: 1px solid #e2e8f0; padding: 16px 0; position: sticky; top:0; z-index:100; }
+        .logo { font-size: 28px; font-weight: 800; color: #ff5722; text-decoration: none; }
+        .nav a { color: #64748b; text-decoration: none; margin-left: 24px; font-weight: 500; }
+        .nav a:hover { color: #ff5722; }
+        .service-detail { display: flex; gap: 40px; margin: 40px 0; flex-wrap: wrap; }
+        .service-info { flex: 1; }
+        .service-info img { width: 100%; border-radius: 24px; }
+        .calculator-box { flex: 1; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); }
+        .calc-param { margin-bottom: 24px; }
+        .calc-param label { font-weight: 700; display: block; margin-bottom: 8px; }
+        .calc-param input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 16px; }
+        .calc-price { font-size: 32px; font-weight: 800; color: #ff5722; margin: 24px 0; text-align: center; }
+        .error-message { color: #dc2626; font-size: 14px; margin-top: 8px; text-align: center; }
+        .manager-message { background: #fef3c7; border-left: 4px solid #ff5722; padding: 16px; border-radius: 12px; text-align: center; }
+        .note { font-size: 12px; color: #64748b; text-align: center; margin-top: 16px; }
+        @media (max-width: 768px) { .service-detail { flex-direction: column; } }
+    </style>
+</head>
+<body>
+<header class="header">
+    <div class="container">
+        <a href="/" class="logo">SOLO.KG</a>
+        <div class="nav">
+            <a href="/">Главная</a>
+            <a href="/admin">Админка</a>
+        </div>
+    </div>
+</header>
+
+<main class="container" id="serviceDetail"></main>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const serviceId = urlParams.get('id');
+
+    let serviceData = null;
+    let calculatorConfig = null;
+
+    async function loadService() {
+        if (!serviceId) {
+            document.getElementById('serviceDetail').innerHTML = '<p>Услуга не указана</p>';
+            return;
+        }
+        try {
+            const res = await fetch(`/api/admin/service/${serviceId}`);
+            if (!res.ok) throw new Error('Услуга не найдена');
+            serviceData = await res.json();
+            calculatorConfig = serviceData.calculatorConfig;
+            renderPage();
+        } catch (err) {
+            document.getElementById('serviceDetail').innerHTML = '<p>Ошибка загрузки услуги</p>';
+        }
+    }
+
+    function renderPage() {
+        const container = document.getElementById('serviceDetail');
+        if (!serviceData) return;
+
+        let calcHtml = '';
+        if (calculatorConfig && calculatorConfig.active) {
+            const param = calculatorConfig.parameterLabel || 'Количество';
+            const min = calculatorConfig.parameterMin ?? 0;
+            const max = calculatorConfig.parameterMax ?? '';
+            const step = calculatorConfig.parameterStep ?? 1;
+            const defaultValue = calculatorConfig.parameterDefault ?? min;
+            calcHtml = `
+                    <div class="calculator-box">
+                        <h3 style="margin-bottom: 24px;">🧮 Калькулятор стоимости</h3>
+                        <div class="calc-param">
+                            <label>${param}</label>
+                            <input type="number" id="paramX" min="${min}" ${max ? `max="${max}"` : ''} step="${step}" value="${defaultValue}">
+                        </div>
+                        <div class="calc-price" id="priceDisplay">0 сом</div>
+                        <div id="calcError" class="error-message"></div>
+                        <div class="note">✨ Примерная стоимость. Точную цену уточнит менеджер.</div>
+                    </div>
+                `;
+        } else {
+            calcHtml = `
+                    <div class="calculator-box">
+                        <div class="manager-message">
+                            <strong>📞 Для уточнения цены свяжитесь с менеджером</strong><br>
+                            <a href="tel:+996700123456" style="color: #ff5722;">+996 700 123 456</a> или <a href="mailto:info@solo.kg" style="color: #ff5722;">info@solo.kg</a>
+                        </div>
+                    </div>
+                `;
+        }
+
+        container.innerHTML = `
+                <div class="service-detail">
+                    <div class="service-info">
+                        <img src="${serviceData.imageUrl || 'https://via.placeholder.com/600x400?text=SOLO.KG'}" alt="${serviceData.name}">
+                        <h1 style="margin-top: 24px;">${serviceData.name}</h1>
+                        <p style="color:#64748b; margin-top:16px;">${serviceData.description || ''}</p>
+                    </div>
+                    ${calcHtml}
+                </div>
+            `;
+
+        if (calculatorConfig && calculatorConfig.active) {
+            attachCalculatorEvents();
+        }
+    }
+
+    function attachCalculatorEvents() {
+        const input = document.getElementById('paramX');
+        const priceDisplay = document.getElementById('priceDisplay');
+        const errorDiv = document.getElementById('calcError');
+
+        async function calculate() {
+            let x = parseFloat(input.value);
+            if (isNaN(x)) x = 0;
+            errorDiv.innerText = '';
+            priceDisplay.innerText = '...';
+            try {
+                const res = await fetch('/api/calc/price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceId: serviceId, value: x })
+                });
+                if (!res.ok) {
+                    let errMsg = await res.text();
+                    errorDiv.innerText = errMsg || 'Ошибка расчёта';
+                    priceDisplay.innerText = '0 сом';
+                    return;
+                }
+                const price = await res.json();
+                priceDisplay.innerText = price + ' сом';
+            } catch (err) {
+                errorDiv.innerText = 'Ошибка соединения';
+                priceDisplay.innerText = '0 сом';
+            }
+        }
+
+        input.addEventListener('input', calculate);
+        calculate();
+    }
+
+    loadService();
+</script>
+</body>
+</html>

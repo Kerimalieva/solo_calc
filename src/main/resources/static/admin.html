@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Админка - конструктор SOLO.KG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', 'Manrope', sans-serif; background:#f9f9ff; color:#1a1c20; }
+        .container { max-width:1400px; margin:0 auto; padding:0 24px; }
+        .header { background:white; border-bottom:1px solid #e2e8f0; padding:16px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+        .logo { font-size:28px; font-weight:800; color:#ff5722; text-decoration:none; }
+        .nav a { color:#64748b; text-decoration:none; margin-left:24px; font-weight:500; transition:color 0.2s; }
+        .nav a:hover { color:#ff5722; }
+        .admin-panel { background:white; border-radius:32px; padding:32px; margin:40px 0; box-shadow:0 12px 32px rgba(0,0,0,0.06); }
+        .flex-between { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+        .btn { display:inline-block; padding:10px 24px; border-radius:999px; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; text-align:center; }
+        .btn-primary { background:#ff5722; color:white; box-shadow:0 8px 20px rgba(255,87,34,0.2); }
+        .btn-primary:hover { background:#e64a19; transform:translateY(-2px); }
+        .btn-outline { background:transparent; border:2px solid #ff5722; color:#ff5722; }
+        .btn-outline:hover { background:rgba(255,87,34,0.1); }
+        .btn-danger { background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 16px; border-radius:40px; font-weight:600; cursor:pointer; transition:0.2s; }
+        .btn-danger:hover { background:#fecaca; transform:translateY(-1px); }
+        .service-list { margin-top:24px; display:flex; flex-direction:column; gap:12px; max-height:70vh; overflow-y:auto; padding-right:8px; }
+        .service-item { background:#f8fafc; border-radius:20px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:0.2s; border-left:4px solid transparent; gap:12px; flex-wrap:wrap; }
+        .service-item:hover { background:#f1f5f9; }
+        .service-item.active { background:#fff0e6; border-left-color:#ff5722; }
+        .service-info { display:flex; align-items:center; gap:16px; flex-wrap:wrap; flex:1; word-break:break-word; }
+        .service-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .form-group { margin-bottom:24px; }
+        label { display:block; font-weight:600; margin-bottom:8px; color:#334155; font-size:0.9rem; }
+        input, textarea, select { width:100%; padding:12px 16px; border:1px solid #e2e8f0; border-radius:20px; font-family:inherit; font-size:0.95rem; transition:0.2s; }
+        input:focus, textarea:focus { outline:none; border-color:#ff5722; box-shadow:0 0 0 3px rgba(255,87,34,0.1); }
+        .param-row { display:flex; gap:16px; flex-wrap:wrap; }
+        .param-row .form-group { flex:1; margin-bottom:0; }
+        .save-btn { background:#22c55e; color:white; border:none; border-radius:40px; padding:12px 32px; font-weight:700; cursor:pointer; transition:0.2s; width:auto; }
+        .save-btn:hover { background:#16a34a; transform:translateY(-2px); }
+        .hidden { display:none; }
+        .variables-hint { background:#fef9e6; padding:12px 20px; border-radius:20px; margin:20px 0 24px; font-size:0.85rem; color:#b45309; border-left:3px solid #ff5722; }
+        hr { margin:24px 0; border-color:#eef2f7; }
+        h1, h2, h3 { font-weight:700; color:#0f172a; }
+        h2 { font-size:1.5rem; margin-bottom:1rem; }
+        h3 { font-size:1.2rem; margin-bottom:0.8rem; }
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .container { padding:0 16px; }
+            .admin-panel { padding:20px; }
+            .param-row { flex-direction:column; gap:12px; }
+            .service-actions { width:100%; justify-content:flex-end; }
+            .service-item { flex-direction:column; align-items:stretch; }
+            .service-info { justify-content:space-between; }
+            .btn { width:100%; text-align:center; }
+            .save-btn { width:100%; }
+        }
+        @media (max-width: 480px) {
+            .header { flex-direction:column; text-align:center; }
+            .nav a { margin:0 12px; }
+            .flex-between { flex-direction:column; align-items:stretch; }
+            .btn-primary { width:100%; text-align:center; }
+        }
+    </style>
+</head>
+<body>
+<header class="header">
+    <div class="container flex-between">
+        <a href="/" class="logo">SOLO.KG</a>
+        <div class="nav"><a href="/">Главная</a><a href="/admin">Админка</a></div>
+    </div>
+</header>
+<div class="container">
+    <div class="admin-panel">
+        <div class="flex-between"><h1>Управление услугами и калькулятором</h1><button id="newServiceBtn" class="btn btn-primary">+ Новая услуга</button></div>
+        <div style="display:flex; gap:40px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;"><h3>Список услуг</h3><div id="servicesList" class="service-list"></div></div>
+            <div style="flex:2; min-width:260px;">
+                <div id="editPanel" class="hidden">
+                    <h2>Редактирование услуги</h2>
+                    <input type="hidden" id="serviceId">
+                    <div class="form-group"><label>Название услуги *</label><input type="text" id="serviceName" placeholder="Визитки"></div>
+                    <div class="form-group"><label>Описание</label><textarea id="serviceDesc" rows="2"></textarea></div>
+                    <div class="form-group"><label>URL изображения</label><input type="text" id="serviceImage" placeholder="https://example.com/image.jpg"></div>
+                    <div class="form-group"><label><input type="checkbox" id="serviceActive"> Услуга активна на сайте</label></div>
+                    <hr>
+                    <h3>⚙️ Калькулятор</h3>
+                    <div class="form-group"><label><input type="checkbox" id="calcActive"> Активен</label></div>
+                    <div class="form-group"><label>Подпись поля для клиента</label><input type="text" id="paramLabel" placeholder="Количество, м², шт."></div>
+                    <div class="param-row">
+                        <div class="form-group"><label>Min</label><input type="number" id="paramMin" step="any"></div>
+                        <div class="form-group"><label>Max</label><input type="number" id="paramMax" step="any"></div>
+                        <div class="form-group"><label>Step</label><input type="number" id="paramStep" value="1" step="any"></div>
+                        <div class="form-group"><label>Default</label><input type="number" id="paramDefault" value="0" step="any"></div>
+                    </div>
+                    <div class="form-group"><label>Формула (используйте x)</label><textarea id="formula" rows="3" placeholder="x * 50 + (x > 100 ? 200 : 0)"></textarea></div>
+                    <div id="variablesHint" class="variables-hint">📐 Переменная: x – только арифметические операторы (+, -, *, /, ^)</div>
+                    <div style="text-align:right;"><button id="saveServiceBtn" class="save-btn">💾 Сохранить услугу</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    let services = [], currentServiceId = null;
+    async function loadServices(){ const res=await fetch('/api/admin/services'); services=await res.json(); renderServicesList(); }
+    function renderServicesList(){
+        const container=document.getElementById('servicesList');
+        if(!services.length){ container.innerHTML='<div class="service-item">Нет услуг. Создайте первую.</div>'; return; }
+        container.innerHTML=services.map(s=>`
+            <div class="service-item ${currentServiceId===s.id?'active':''}" data-id="${s.id}">
+                <div class="service-info">
+                    <div><strong>${escapeHtml(s.name)}</strong> ${s.active?'✅':'❌'}</div>
+                </div>
+                <div class="service-actions">
+                    <button class="btn-outline edit-service-btn" data-id="${s.id}" style="padding:6px 16px;">Редактировать</button>
+                    <button class="btn-danger delete-service-btn" data-id="${s.id}">Удалить</button>
+                </div>
+            </div>
+        `).join('');
+        document.querySelectorAll('.edit-service-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation(); loadServiceForEdit(parseInt(btn.dataset.id));}));
+        document.querySelectorAll('.delete-service-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation(); deleteService(parseInt(btn.dataset.id));}));
+        document.querySelectorAll('.service-item').forEach(item=>item.addEventListener('click',(e)=>{if(!e.target.classList.contains('edit-service-btn') && !e.target.classList.contains('delete-service-btn')) loadServiceForEdit(parseInt(item.dataset.id));}));
+    }
+    async function deleteService(id){
+        if(!confirm('Вы уверены, что хотите удалить эту услугу? Калькулятор также будет удалён.')) return;
+        try{
+            const res=await fetch(`/api/admin/service/${id}`,{method:'DELETE'});
+            if(res.ok){
+                alert('Услуга удалена');
+                if(currentServiceId===id){ currentServiceId=null; document.getElementById('editPanel').classList.add('hidden'); }
+                await loadServices();
+            } else { alert('Ошибка при удалении'); }
+        }catch(e){ alert('Ошибка сети'); }
+    }
+    async function loadServiceForEdit(id){
+        currentServiceId=id; renderServicesList();
+        const res=await fetch(`/api/admin/service/${id}`); const service=await res.json();
+        document.getElementById('serviceId').value=service.id;
+        document.getElementById('serviceName').value=service.name;
+        document.getElementById('serviceDesc').value=service.description||'';
+        document.getElementById('serviceImage').value=service.imageUrl||'';
+        document.getElementById('serviceActive').checked=service.active;
+        const calc=service.calculatorConfig||{};
+        document.getElementById('calcActive').checked=calc.active||false;
+        document.getElementById('paramLabel').value=calc.parameterLabel||'';
+        document.getElementById('paramMin').value=calc.parameterMin!==undefined?calc.parameterMin:'';
+        document.getElementById('paramMax').value=calc.parameterMax!==undefined?calc.parameterMax:'';
+        document.getElementById('paramStep').value=calc.parameterStep!==undefined?calc.parameterStep:1;
+        document.getElementById('paramDefault').value=calc.parameterDefault!==undefined?calc.parameterDefault:0;
+        document.getElementById('formula').value=calc.formula||'';
+        document.getElementById('editPanel').classList.remove('hidden');
+    }
+    document.getElementById('saveServiceBtn').onclick=async()=>{
+        const servicePayload={name:document.getElementById('serviceName').value.trim(), description:document.getElementById('serviceDesc').value.trim(), imageUrl:document.getElementById('serviceImage').value.trim(), active:document.getElementById('serviceActive').checked};
+        if(!servicePayload.name){ alert('Название услуги обязательно'); return; }
+        const serviceId=document.getElementById('serviceId').value;
+        let updatedService;
+        if(serviceId){
+            const res=await fetch(`/api/admin/service/${serviceId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(servicePayload)});
+            updatedService=await res.json();
+        }else{
+            const res=await fetch('/api/admin/service',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(servicePayload)});
+            updatedService=await res.json();
+        }
+        const calcPayload={
+            active:document.getElementById('calcActive').checked,
+            formula:document.getElementById('formula').value.trim(),
+            parameterLabel:document.getElementById('paramLabel').value.trim(),
+            parameterMin:document.getElementById('paramMin').value===''?null:parseFloat(document.getElementById('paramMin').value),
+            parameterMax:document.getElementById('paramMax').value===''?null:parseFloat(document.getElementById('paramMax').value),
+            parameterStep:parseFloat(document.getElementById('paramStep').value)||1,
+            parameterDefault:parseFloat(document.getElementById('paramDefault').value)||0,
+        };
+        await fetch(`/api/admin/service/${updatedService.id}/calculator`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(calcPayload)});
+        alert('Услуга сохранена!');
+        loadServices();
+        if(updatedService.id) loadServiceForEdit(updatedService.id);
+    };
+    document.getElementById('newServiceBtn').onclick=()=>{
+        currentServiceId=null; renderServicesList();
+        document.getElementById('serviceId').value='';
+        document.getElementById('serviceName').value='';
+        document.getElementById('serviceDesc').value='';
+        document.getElementById('serviceImage').value='';
+        document.getElementById('serviceActive').checked=true;
+        document.getElementById('calcActive').checked=true; // автоматически включаем калькулятор
+        document.getElementById('paramLabel').value='';
+        document.getElementById('paramMin').value='';
+        document.getElementById('paramMax').value='';
+        document.getElementById('paramStep').value='1';
+        document.getElementById('paramDefault').value='0';
+        document.getElementById('formula').value='';
+        document.getElementById('editPanel').classList.remove('hidden');
+    };
+    function escapeHtml(str){if(!str)return ''; return str.replace(/[&<>]/g,function(m){if(m==='&')return '&amp;'; if(m==='<')return '&lt;'; if(m==='>')return '&gt;'; return m;});}
+    loadServices();
+</script>
+</body>
+</html>
