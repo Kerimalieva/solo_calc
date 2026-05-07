@@ -17,27 +17,37 @@
         .hero h1 { font-size:2.8rem; font-weight:800; margin-bottom:16px; background:linear-gradient(135deg,#ff5722,#c2410c); -webkit-background-clip:text; background-clip:text; color:transparent; }
         .hero p { font-size:1.2rem; color:#64748b; max-width:600px; margin:0 auto; }
         .services-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:30px; margin:40px 0 60px; }
-        .service-card { background:white; border-radius:28px; overflow:hidden; box-shadow:0 10px 25px -5px rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; }
+        .service-card { background:white; border-radius:28px; overflow:hidden; box-shadow:0 10px 25px -5px rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; cursor:pointer; }
         .service-card:hover { transform:translateY(-5px); box-shadow:0 20px 30px -12px rgba(0,0,0,0.1); }
         .service-card img { width:100%; height:200px; object-fit:cover; background:#f1f5f9; }
         .service-card-content { padding:20px; flex:1; display:flex; flex-direction:column; }
-        .service-card h3 { font-size:1.4rem; font-weight:700; margin-bottom:8px; color:#0f172a; }
-        .service-card p { color:#64748b; font-size:0.9rem; line-height:1.4; margin-bottom:16px; flex:1; }
-        .service-footer { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+        .service-card h3 { font-size:1.4rem; font-weight:700; margin-bottom:8px; color:#0f172a; pointer-events:none; }
+        .service-card p { color:#64748b; font-size:0.9rem; line-height:1.4; margin-bottom:16px; flex:1; pointer-events:none; }
+        .service-footer { display:flex; justify-content:space-between; align-items:center; margin-top:16px; pointer-events:none; }
         .price-badge { background:#f1f5f9; border-radius:40px; padding:6px 14px; font-size:0.8rem; font-weight:600; color:#475569; display:flex; align-items:center; gap:6px; }
         .price-badge.has-calc { background:#fff0e6; color:#ff5722; }
-        .btn-calc { background:#ff5722; color:white; border:none; border-radius:40px; padding:8px 20px; font-weight:600; cursor:pointer; transition:0.2s; text-decoration:none; display:inline-block; }
+        .btn-calc { background:#ff5722; color:white; border:none; border-radius:40px; padding:8px 20px; font-weight:600; cursor:pointer; transition:0.2s; pointer-events:auto; text-decoration:none; display:inline-block; }
         .btn-calc:hover { background:#e64a19; transform:scale(1.02); }
         .footer { text-align:center; padding:30px; border-top:1px solid #eef2f7; color:#94a3b8; font-size:0.8rem; margin-top:40px; }
+        /* Модальное окно */
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:1000; visibility:hidden; opacity:0; transition:0.2s; }
+        .modal-overlay.active { visibility:visible; opacity:1; }
+        .modal-container { background:white; border-radius:32px; max-width:500px; width:90%; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); position:relative; }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        .modal-header h3 { font-size:1.5rem; font-weight:700; }
+        .modal-close { background:none; border:none; font-size:28px; cursor:pointer; color:#94a3b8; }
+        .modal-body .calc-param { margin-bottom:20px; }
+        .modal-body label { display:block; font-weight:600; margin-bottom:8px; }
+        .modal-body input { width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:20px; }
+        .modal-price { font-size:28px; font-weight:800; color:#ff5722; text-align:center; margin:20px 0; }
+        .modal-note { font-size:12px; color:#64748b; text-align:center; }
+        .btn-close-modal { background:#f1f5f9; border:none; border-radius:40px; padding:10px 20px; width:100%; font-weight:600; cursor:pointer; margin-top:16px; }
         @media (max-width:768px) {
             .hero h1 { font-size:2rem; }
             .services-grid { gap:20px; }
             .container { padding:0 16px; }
             .nav a { margin-left:16px; }
-        }
-        @media (max-width:480px) {
-            .hero { padding:30px 0; }
-            .services-grid { grid-template-columns:1fr; }
+            .modal-container { width:95%; padding:20px; }
         }
     </style>
 </head>
@@ -69,7 +79,23 @@
     <p>© 2026 SOLO.KG — маркетплейс профессиональных услуг</p>
 </footer>
 
+<!-- Модальное окно -->
+<div id="calculatorModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalTitle">Калькулятор</h3>
+            <button class="modal-close" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Динамически заполняется -->
+        </div>
+    </div>
+</div>
+
 <script>
+    let currentModalServiceId = null;
+    let currentModalInput = null;
+
     async function loadServices() {
         try {
             const res = await fetch('/api/admin/services');
@@ -88,25 +114,112 @@
         }
         container.innerHTML = services.map(service => {
             const hasCalculator = service.calculatorConfig && service.calculatorConfig.active;
-            const priceText = hasCalculator ? 'Рассчитать цену' : 'Цена по запросу';
             const badgeClass = hasCalculator ? 'has-calc' : '';
             const detailUrl = `/service?id=${service.id}`;
             return `
-                    <div class="service-card">
+                    <div class="service-card" data-url="${detailUrl}">
                         <img src="${service.imageUrl || 'https://via.placeholder.com/400x200?text=SOLO.KG'}" alt="${escapeHtml(service.name)}" loading="lazy">
                         <div class="service-card-content">
                             <h3>${escapeHtml(service.name)}</h3>
                             <p>${escapeHtml(service.description?.substring(0, 100) || '')}${service.description?.length > 100 ? '...' : ''}</p>
                             <div class="service-footer">
                                 <div class="price-badge ${badgeClass}">
-                                    <span>🧮</span> ${priceText}
+                                    <span>🧮</span> ${hasCalculator ? 'Примерная цена' : 'Цена по запросу'}
                                 </div>
-                                <a href="${detailUrl}" class="btn-calc">${hasCalculator ? 'Рассчитать' : 'Подробнее'}</a>
+                                ${hasCalculator ? `<button class="btn-calc" data-id="${service.id}" data-name="${escapeHtml(service.name)}">Рассчитать</button>` : ''}
                             </div>
                         </div>
                     </div>
                 `;
         }).join('');
+
+        // Клик по карточке (кроме кнопки) -> переход на детальную страницу
+        document.querySelectorAll('.service-card').forEach(card => {
+            const url = card.dataset.url;
+            card.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('btn-calc')) {
+                    window.location.href = url;
+                }
+            });
+        });
+
+        // Обработчики кнопок "Рассчитать"
+        document.querySelectorAll('.btn-calc').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const serviceId = parseInt(btn.dataset.id);
+                const serviceName = btn.dataset.name;
+                openCalculatorModal(serviceId, serviceName);
+            });
+        });
+    }
+
+    async function openCalculatorModal(serviceId, serviceName) {
+        currentModalServiceId = serviceId;
+        document.getElementById('modalTitle').innerText = serviceName;
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
+        document.getElementById('calculatorModal').classList.add('active');
+
+        try {
+            const res = await fetch(`/api/admin/service/${serviceId}`);
+            const service = await res.json();
+            const calc = service.calculatorConfig;
+            if (!calc || !calc.active) {
+                modalBody.innerHTML = '<div class="modal-note">Калькулятор не активен. Свяжитесь с менеджером.</div><button class="btn-close-modal" id="modalCloseBtn">Закрыть</button>';
+                document.getElementById('modalCloseBtn')?.addEventListener('click', closeModal);
+                return;
+            }
+            const paramLabel = calc.parameterLabel || 'Количество';
+            const min = calc.parameterMin !== null ? calc.parameterMin : 0;
+            const max = calc.parameterMax !== null ? calc.parameterMax : '';
+            const step = calc.parameterStep || 1;
+            const defaultValue = calc.parameterDefault !== null ? calc.parameterDefault : min;
+
+            modalBody.innerHTML = `
+                    <div class="calc-param">
+                        <label>${escapeHtml(paramLabel)}</label>
+                        <input type="number" id="modalParamX" min="${min}" ${max ? `max="${max}"` : ''} step="${step}" value="${defaultValue}">
+                    </div>
+                    <div class="modal-price" id="modalPrice">0 сом</div>
+                    <div class="modal-note">✨ Примерная стоимость. Точную цену уточнит менеджер.</div>
+                    <button class="btn-close-modal" id="modalCloseBtn">Закрыть</button>
+                `;
+            const input = document.getElementById('modalParamX');
+            const priceDisplay = document.getElementById('modalPrice');
+            const closeBtn = document.getElementById('modalCloseBtn');
+            closeBtn.addEventListener('click', closeModal);
+            async function updatePrice() {
+                let x = parseFloat(input.value);
+                if (isNaN(x)) x = 0;
+                priceDisplay.innerText = '...';
+                try {
+                    const resp = await fetch('/api/calc/price', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ serviceId: serviceId, value: x })
+                    });
+                    if (!resp.ok) {
+                        priceDisplay.innerText = 'Ошибка';
+                        return;
+                    }
+                    const price = await resp.json();
+                    priceDisplay.innerText = price + ' сом';
+                } catch (err) {
+                    priceDisplay.innerText = 'Ошибка';
+                }
+            }
+            input.addEventListener('input', updatePrice);
+            updatePrice();
+        } catch (err) {
+            modalBody.innerHTML = '<div class="modal-note">Ошибка загрузки калькулятора</div><button class="btn-close-modal" id="modalCloseBtn">Закрыть</button>';
+            document.getElementById('modalCloseBtn')?.addEventListener('click', closeModal);
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('calculatorModal').classList.remove('active');
+        currentModalServiceId = null;
     }
 
     function escapeHtml(str) {
@@ -118,6 +231,11 @@
             return m;
         });
     }
+
+    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    document.getElementById('calculatorModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('calculatorModal')) closeModal();
+    });
 
     loadServices();
 </script>
